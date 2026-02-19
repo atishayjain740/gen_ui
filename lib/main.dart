@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:genui/genui.dart';
 import 'package:genui_google_generative_ai/genui_google_generative_ai.dart';
+import 'package:gen_ui/custom_catalog.dart';
 import 'package:gen_ui/system_instruction.dart';
+import 'package:gen_ui/widget_preview_page.dart';
 
 Future<void> main() async {
   await dotenv.load();
@@ -77,6 +79,18 @@ class TopicSelectionPage extends StatelessWidget {
                   _TopicCard(topic: topic),
                   const SizedBox(height: 16),
                 ],
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const WidgetPreviewPage(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.palette_outlined),
+                  label: const Text('Widget Preview'),
+                ),
               ],
             ),
           ),
@@ -149,7 +163,7 @@ class _ChatPageState extends State<ChatPage> {
   void initState() {
     super.initState();
 
-    final catalog = CoreCatalogItems.asCatalog();
+    final catalog = createCustomCatalog();
     _a2uiMessageProcessor = A2uiMessageProcessor(catalogs: [catalog]);
 
     final contentGenerator = GoogleGenerativeAiContentGenerator(
