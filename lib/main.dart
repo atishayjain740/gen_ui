@@ -9,6 +9,20 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
+enum TopicMode {
+  mentalHealth('Mental Health', Icons.psychology, mentalHealthInstruction),
+  travelItinerary(
+    'Travel Itinerary',
+    Icons.flight_takeoff,
+    travelItineraryInstruction,
+  );
+
+  const TopicMode(this.label, this.icon, this.instruction);
+  final String label;
+  final IconData icon;
+  final String instruction;
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -19,21 +33,115 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const MyHomePage(title: 'GenUI Demo'),
+      home: const TopicSelectionPage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
+class TopicSelectionPage extends StatelessWidget {
+  const TopicSelectionPage({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.auto_awesome,
+                  size: 56,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'What would you like\nto explore?',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Choose a topic to get started',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 40),
+                for (final topic in TopicMode.values) ...[
+                  _TopicCard(topic: topic),
+                  const SizedBox(height: 16),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _TopicCard extends StatelessWidget {
+  const _TopicCard({required this.topic});
+  final TopicMode topic;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: double.infinity,
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ChatPage(topic: topic),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: Row(
+              children: [
+                Icon(topic.icon, size: 32, color: theme.colorScheme.primary),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    topic.label,
+                    style: theme.textTheme.titleLarge,
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class ChatPage extends StatefulWidget {
+  const ChatPage({super.key, required this.topic});
+  final TopicMode topic;
+
+  @override
+  State<ChatPage> createState() => _ChatPageState();
+}
+
+class _ChatPageState extends State<ChatPage> {
   late final A2uiMessageProcessor _a2uiMessageProcessor;
   late final GenUiConversation _genUiConversation;
 
@@ -46,7 +154,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     final contentGenerator = GoogleGenerativeAiContentGenerator(
       catalog: catalog,
-      systemInstruction: systemInstruction,
+      systemInstruction: widget.topic.instruction,
       modelName: 'models/gemini-2.5-flash',
       apiKey: dotenv.env['GEMINI_API_KEY']!,
     );
@@ -93,7 +201,7 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
+        title: Text(widget.topic.label),
       ),
       body: Column(
         children: [
@@ -133,7 +241,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   );
                 }
 
-                // Find the latest AiUiMessage
                 final AiUiMessage? latestUiMessage = messages.reversed
                     .whereType<AiUiMessage>()
                     .firstOrNull;
@@ -147,7 +254,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     horizontal: 12,
                     vertical: 8,
                   ),
-                  itemCount: 1, // Only display the latest UI message
+                  itemCount: 1,
                   itemBuilder: (context, index) {
                     return Padding(
                       padding: const EdgeInsets.only(top: 8, bottom: 8),
