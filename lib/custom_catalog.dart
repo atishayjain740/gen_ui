@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:genui/genui.dart';
+import 'package:gen_ui/theme.dart';
 
 Catalog createCustomCatalog() {
   return CoreCatalogItems.asCatalog().copyWith([
@@ -9,6 +10,7 @@ Catalog createCustomCatalog() {
     _styledSlider,
     _styledCheckBox,
     _styledTextField,
+    _imageCard,
   ]);
 }
 
@@ -21,16 +23,16 @@ final _styledCard = CatalogItem(
   widgetBuilder: (itemContext) {
     final data = itemContext.data as JsonMap;
     final childId = data['child'] as String;
-    final theme = Theme.of(itemContext.buildContext);
 
     return Card(
       elevation: 0,
+      color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: theme.colorScheme.outlineVariant),
+        side: const BorderSide(color: AppColors.border),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         child: itemContext.buildChild(childId),
       ),
     );
@@ -62,8 +64,10 @@ final _styledButton = CatalogItem(
     final theme = Theme.of(itemContext.buildContext);
 
     void onPressed() {
-      final resolved =
-          resolveContext(itemContext.dataContext, contextDefinition);
+      final resolved = resolveContext(
+        itemContext.dataContext,
+        contextDefinition,
+      );
       itemContext.dispatchEvent(
         UserActionEvent(
           name: actionName,
@@ -81,11 +85,15 @@ final _styledButton = CatalogItem(
         child: FilledButton(
           onPressed: onPressed,
           style: FilledButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
             ),
-            textStyle: theme.textTheme.titleMedium,
+            textStyle: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
           child: child,
         ),
@@ -97,11 +105,12 @@ final _styledButton = CatalogItem(
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.primary,
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
           ),
-          side: BorderSide(color: theme.colorScheme.primary),
+          side: const BorderSide(color: AppColors.primary),
           textStyle: theme.textTheme.titleMedium,
         ),
         child: child,
@@ -131,21 +140,22 @@ final _styledMultipleChoice = CatalogItem(
     final options = (data['options'] as List).cast<JsonMap>();
     final maxAllowed = (data['maxAllowedSelections'] as num?)?.toInt();
 
-    final selectionsNotifier =
-        itemContext.dataContext.subscribeToObjectArray(selections);
+    final selectionsNotifier = itemContext.dataContext.subscribeToObjectArray(
+      selections,
+    );
 
     return ValueListenableBuilder<List<Object?>?>(
       valueListenable: selectionsNotifier,
       builder: (context, currentSelections, _) {
-        final theme = Theme.of(context);
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Wrap(
             spacing: 8,
             runSpacing: 8,
             children: options.map((option) {
-              final labelNotifier = itemContext.dataContext
-                  .subscribeToString(option['label'] as JsonMap);
+              final labelNotifier = itemContext.dataContext.subscribeToString(
+                option['label'] as JsonMap,
+              );
               final value = option['value'] as String;
 
               return ValueListenableBuilder<String?>(
@@ -161,19 +171,28 @@ final _styledMultipleChoice = CatalogItem(
                       onSelected: (selected) {
                         final path = selections['path'] as String?;
                         if (path == null) return;
-                        itemContext.dataContext
-                            .update(DataPath(path), selected ? [value] : []);
+                        itemContext.dataContext.update(
+                          DataPath(path),
+                          selected ? [value] : [],
+                        );
                       },
-                      selectedColor: theme.colorScheme.primaryContainer,
+                      selectedColor: AppColors.primaryLight,
+                      backgroundColor: AppColors.background,
                       labelStyle: TextStyle(
                         color: isSelected
-                            ? theme.colorScheme.onPrimaryContainer
-                            : theme.colorScheme.onSurface,
-                        fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.normal,
+                            ? AppColors.primary
+                            : AppColors.primary,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
+                        side: BorderSide(
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.border,
+                        ),
                       ),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -188,7 +207,8 @@ final _styledMultipleChoice = CatalogItem(
                     onSelected: (selected) {
                       final path = selections['path'] as String?;
                       if (path == null) return;
-                      final newSelections = currentSelections
+                      final newSelections =
+                          currentSelections
                               ?.map((e) => e.toString())
                               .toList() ??
                           <String>[];
@@ -200,13 +220,21 @@ final _styledMultipleChoice = CatalogItem(
                       } else {
                         newSelections.remove(value);
                       }
-                      itemContext.dataContext
-                          .update(DataPath(path), newSelections);
+                      itemContext.dataContext.update(
+                        DataPath(path),
+                        newSelections,
+                      );
                     },
-                    selectedColor: theme.colorScheme.primaryContainer,
-                    checkmarkColor: theme.colorScheme.onPrimaryContainer,
+                    selectedColor: AppColors.primaryLight,
+                    backgroundColor: AppColors.background,
+                    checkmarkColor: AppColors.primary,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
+                      side: BorderSide(
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.border,
+                      ),
                     ),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -232,7 +260,7 @@ final _styledMultipleChoice = CatalogItem(
         {"label":{"literalString":"City & Nightlife"},"value":"city"},
         {"label":{"literalString":"Food & Culinary Tour"},"value":"food"}
       ]}}},
-      {"id":"btn","component":{"Button":{"child":"btnTxt","primary":true,"action":{"name":"submit"}}}},
+      {"id":"btn","component":{"Button":{"child":"btnTxt","primary":true,"action":{"name":"submit","context":[{"key":"travelStyle","value":{"path":"/travel"}}]}}}},
       {"id":"btnTxt","component":{"Text":{"text":{"literalString":"Continue"}}}}
     ]''',
   ],
@@ -250,8 +278,10 @@ final _styledSlider = CatalogItem(
     final minValue = (data['minValue'] as num?)?.toDouble() ?? 0.0;
     final maxValue = (data['maxValue'] as num?)?.toDouble() ?? 1.0;
 
-    final valueNotifier =
-        itemContext.dataContext.subscribeToValue<num>(valueRef, 'literalNumber');
+    final valueNotifier = itemContext.dataContext.subscribeToValue<num>(
+      valueRef,
+      'literalNumber',
+    );
 
     return ValueListenableBuilder<num?>(
       valueListenable: valueNotifier,
@@ -265,13 +295,13 @@ final _styledSlider = CatalogItem(
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer,
+                color: AppColors.primaryLight,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 currentValue.toStringAsFixed(0),
                 style: theme.textTheme.headlineSmall?.copyWith(
-                  color: theme.colorScheme.onPrimaryContainer,
+                  color: AppColors.primary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -280,13 +310,12 @@ final _styledSlider = CatalogItem(
             SliderTheme(
               data: SliderThemeData(
                 trackHeight: 6,
-                thumbShape:
-                    const RoundSliderThumbShape(enabledThumbRadius: 12),
-                overlayShape:
-                    const RoundSliderOverlayShape(overlayRadius: 22),
-                activeTrackColor: theme.colorScheme.primary,
-                inactiveTrackColor: theme.colorScheme.primaryContainer,
-                thumbColor: theme.colorScheme.primary,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 22),
+                activeTrackColor: AppColors.primary,
+                inactiveTrackColor: AppColors.primaryLight,
+                thumbColor: AppColors.primary,
+                overlayColor: AppColors.primary,
               ),
               child: Slider(
                 value: currentValue,
@@ -309,13 +338,13 @@ final _styledSlider = CatalogItem(
                   Text(
                     '${minValue.toStringAsFixed(0)} day',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                      color: AppColors.textMuted,
                     ),
                   ),
                   Text(
                     '${maxValue.toStringAsFixed(0)} days',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                      color: AppColors.textMuted,
                     ),
                   ),
                 ],
@@ -331,7 +360,7 @@ final _styledSlider = CatalogItem(
       {"id":"root","component":{"Column":{"children":{"explicitList":["q","slider","btn"]}}}},
       {"id":"q","component":{"Text":{"text":{"literalString":"How many days do you have?"},"usageHint":"h4"}}},
       {"id":"slider","component":{"Slider":{"minValue":1,"maxValue":14,"value":{"path":"/days","literalNumber":7}}}},
-      {"id":"btn","component":{"Button":{"child":"btnTxt","primary":true,"action":{"name":"submit"}}}},
+      {"id":"btn","component":{"Button":{"child":"btnTxt","primary":true,"action":{"name":"submit","context":[{"key":"days","value":{"path":"/days"}}]}}}},
       {"id":"btnTxt","component":{"Text":{"text":{"literalString":"Continue"}}}}
     ]''',
   ],
@@ -361,9 +390,12 @@ final _styledCheckBox = CatalogItem(
               contentPadding: const EdgeInsets.symmetric(horizontal: 4),
               title: Text(
                 label ?? '',
-                style: Theme.of(context).textTheme.bodyLarge,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyLarge?.copyWith(color: AppColors.primary),
               ),
               value: value ?? false,
+              activeThumbColor: AppColors.primary,
               onChanged: (newValue) {
                 final path = valueRef['path'] as String?;
                 if (path != null) {
@@ -423,9 +455,11 @@ final _styledTextField = CatalogItem(
                 final actionName = onSubmittedAction['name'] as String;
                 final contextDef =
                     (onSubmittedAction['context'] as List<Object?>?) ??
-                        <Object?>[];
-                final resolved =
-                    resolveContext(itemContext.dataContext, contextDef);
+                    <Object?>[];
+                final resolved = resolveContext(
+                  itemContext.dataContext,
+                  contextDef,
+                );
                 itemContext.dispatchEvent(
                   UserActionEvent(
                     name: actionName,
@@ -445,6 +479,37 @@ final _styledTextField = CatalogItem(
       {"id":"root","component":{"Column":{"children":{"explicitList":["q","input"]}}}},
       {"id":"q","component":{"Text":{"text":{"literalString":"Tell us more about how you're feeling"},"usageHint":"h4"}}},
       {"id":"input","component":{"TextField":{"text":{"path":"/feeling","literalString":""},"label":{"literalString":"Your thoughts..."}}}}
+    ]''',
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// ImageCard — card wrapper optimized for displaying images
+// ---------------------------------------------------------------------------
+final _imageCard = CatalogItem(
+  name: 'ImageCard',
+  dataSchema: CoreCatalogItems.card.dataSchema,
+  widgetBuilder: (itemContext) {
+    final data = itemContext.data as JsonMap;
+    final childId = data['child'] as String;
+
+    return Card(
+      elevation: 0,
+      color: Colors.white,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppColors.border),
+      ),
+      child: itemContext.buildChild(childId),
+    );
+  },
+  exampleData: [
+    () => '''[
+      {"id":"root","component":{"ImageCard":{"child":"content"}}},
+      {"id":"content","component":{"Column":{"children":{"explicitList":["img","caption"]}}}},
+      {"id":"img","component":{"Image":{"url":{"literalString":"https://storage.googleapis.com/cms-storage-bucket/lockup_flutter_horizontal.c823e53b3a1a7b0d36a9.png"},"usageHint":"header"}}},
+      {"id":"caption","component":{"Text":{"text":{"literalString":"The Flutter framework logo"}}}}
     ]''',
   ],
 );
@@ -493,22 +558,23 @@ class _StyledTextFieldState extends State<_StyledTextField> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return TextField(
       controller: _controller,
+      style: const TextStyle(color: AppColors.primary),
       decoration: InputDecoration(
         labelText: widget.label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        labelStyle: const TextStyle(color: AppColors.textMuted),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: theme.colorScheme.outline),
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
         filled: true,
-        fillColor: theme.colorScheme.surfaceContainerLowest,
+        fillColor: Colors.white,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 14,

@@ -4,6 +4,7 @@ import 'package:genui/genui.dart';
 import 'package:genui_google_generative_ai/genui_google_generative_ai.dart';
 import 'package:gen_ui/custom_catalog.dart';
 import 'package:gen_ui/system_instruction.dart';
+import 'package:gen_ui/theme.dart';
 import 'package:gen_ui/widget_preview_page.dart';
 
 Future<void> main() async {
@@ -12,17 +13,18 @@ Future<void> main() async {
 }
 
 enum TopicMode {
-  mentalHealth('Mental Health', Icons.psychology, mentalHealthInstruction),
-  travelItinerary(
-    'Travel Itinerary',
-    Icons.flight_takeoff,
-    travelItineraryInstruction,
-  );
+  mentalHealth('Mental Health', Icons.psychology, 3),
+  travelItinerary('Travel Itinerary', Icons.flight_takeoff, 3);
 
-  const TopicMode(this.label, this.icon, this.instruction);
+  const TopicMode(this.label, this.icon, this.questionCount);
   final String label;
   final IconData icon;
-  final String instruction;
+  final int questionCount;
+
+  String get instruction => switch (this) {
+    mentalHealth => mentalHealthInstruction(questionCount: questionCount),
+    travelItinerary => travelItineraryInstruction(questionCount: questionCount),
+  };
 }
 
 class MyApp extends StatelessWidget {
@@ -32,9 +34,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'GenUI Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
+      theme: appTheme,
       home: const TopicSelectionPage(),
     );
   }
@@ -110,16 +110,18 @@ class _TopicCard extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 0,
+        color: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppColors.border),
+        ),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => ChatPage(topic: topic),
-              ),
-            );
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => ChatPage(topic: topic)));
           },
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -128,10 +130,7 @@ class _TopicCard extends StatelessWidget {
                 Icon(topic.icon, size: 32, color: theme.colorScheme.primary),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: Text(
-                    topic.label,
-                    style: theme.textTheme.titleLarge,
-                  ),
+                  child: Text(topic.label, style: theme.textTheme.titleLarge),
                 ),
                 Icon(
                   Icons.arrow_forward_ios,
@@ -169,15 +168,19 @@ class _ChatPageState extends State<ChatPage> {
     final contentGenerator = GoogleGenerativeAiContentGenerator(
       catalog: catalog,
       systemInstruction: widget.topic.instruction,
-      modelName: 'models/gemini-2.5-flash',
+      modelName: 'models/gemini-3-flash-preview',
       apiKey: dotenv.env['GEMINI_API_KEY']!,
     );
 
     _genUiConversation = GenUiConversation(
       contentGenerator: contentGenerator,
       a2uiMessageProcessor: _a2uiMessageProcessor,
-      onSurfaceAdded: (_) => setState(() {}),
-      onSurfaceDeleted: (_) => setState(() {}),
+      onSurfaceAdded: (_) {
+        if (mounted) setState(() {});
+      },
+      onSurfaceDeleted: (_) {
+        if (mounted) setState(() {});
+      },
       onError: _handleGenUiError,
     );
   }
@@ -202,7 +205,6 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void dispose() {
     _genUiConversation.dispose();
-    _a2uiMessageProcessor.dispose();
     super.dispose();
   }
 
@@ -214,7 +216,9 @@ class _ChatPageState extends State<ChatPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        backgroundColor: AppColors.background,
+        foregroundColor: AppColors.primary,
+        elevation: 0,
         title: Text(widget.topic.label),
       ),
       body: Column(

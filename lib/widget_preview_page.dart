@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:genui/genui.dart';
 import 'package:gen_ui/custom_catalog.dart';
+import 'package:gen_ui/theme.dart';
 
 class WidgetPreviewPage extends StatelessWidget {
   const WidgetPreviewPage({super.key});
@@ -9,7 +10,9 @@ class WidgetPreviewPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        backgroundColor: AppColors.background,
+        foregroundColor: AppColors.primary,
+        elevation: 0,
         title: const Text('Widget Preview'),
       ),
       body: DebugCatalogView(
