@@ -35,6 +35,7 @@ class OpenAiContentGenerator implements ContentGenerator {
     this.additionalTools = const [],
     this.modelName = 'gpt-4o',
     this.apiKey,
+    this.temperature,
   });
 
   /// The catalog of UI components available to the AI.
@@ -71,6 +72,13 @@ class OpenAiContentGenerator implements ContentGenerator {
 
   /// The API key to use for authentication.
   final String? apiKey;
+
+  /// The sampling temperature for the model (0.0 to 2.0).
+  ///
+  /// Higher values (e.g. 1.0) make output more creative and varied,
+  /// while lower values (e.g. 0.2) make it more focused and deterministic.
+  /// When null, the API uses its default.
+  final double? temperature;
 
   /// The total number of input tokens used by this client.
   int inputTokenUsage = 0;
@@ -354,6 +362,7 @@ class OpenAiContentGenerator implements ContentGenerator {
         try {
           final request = openai.ChatCompletionCreateRequest(
             model: modelName,
+            temperature: temperature,
             messages: [
               if (systemInstruction != null)
                 openai.ChatMessage.system(systemInstruction!),

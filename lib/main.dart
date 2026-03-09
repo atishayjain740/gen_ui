@@ -12,19 +12,67 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
-enum TopicMode {
-  mentalHealth('Mental Health', Icons.psychology, 3),
-  travelItinerary('Travel Itinerary', Icons.flight_takeoff, 3);
+class AgentConfig {
+  const AgentConfig({
+    required this.label,
+    required this.subtitle,
+    required this.icon,
+    required String Function() instructionBuilder,
+    this.questionCount = 6,
+  }) : _instructionBuilder = instructionBuilder;
 
-  const TopicMode(this.label, this.icon, this.questionCount);
   final String label;
+  final String subtitle;
   final IconData icon;
   final int questionCount;
+  final String Function() _instructionBuilder;
 
-  String get instruction => switch (this) {
-    mentalHealth => mentalHealthInstruction(questionCount: questionCount),
-    travelItinerary => travelItineraryInstruction(questionCount: questionCount),
-  };
+  String get instruction => _instructionBuilder();
+
+  static final builtIn = [
+    AgentConfig(
+      label: 'Mental Health',
+      subtitle: 'Wellness check-in & personalized action plan',
+      icon: Icons.psychology,
+      instructionBuilder: () => mentalHealthInstruction(questionCount: 6),
+    ),
+    AgentConfig(
+      label: 'Travel Itinerary',
+      subtitle: 'Plan your dream trip with a day-by-day guide',
+      icon: Icons.flight_takeoff,
+      instructionBuilder: () => travelItineraryInstruction(questionCount: 6),
+    ),
+    AgentConfig(
+      label: 'Fitness & Nutrition',
+      subtitle: 'Custom workout plan & nutrition guidelines',
+      icon: Icons.fitness_center,
+      instructionBuilder: () => fitnessNutritionInstruction(questionCount: 6),
+    ),
+    AgentConfig(
+      label: 'Career Development',
+      subtitle: 'Strategic career plan with actionable steps',
+      icon: Icons.trending_up,
+      instructionBuilder: () => careerDevelopmentInstruction(questionCount: 6),
+    ),
+  ];
+
+  factory AgentConfig.custom({
+    required String name,
+    required IconData icon,
+    required String systemPrompt,
+    int questionCount = 6,
+  }) {
+    return AgentConfig(
+      label: name,
+      subtitle: systemPrompt,
+      icon: icon,
+      questionCount: questionCount,
+      instructionBuilder: () => customAgentInstruction(
+        agentPrompt: systemPrompt,
+        questionCount: questionCount,
+      ),
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -40,17 +88,128 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class TopicSelectionPage extends StatelessWidget {
+class TopicSelectionPage extends StatefulWidget {
   const TopicSelectionPage({super.key});
+
+  @override
+  State<TopicSelectionPage> createState() => _TopicSelectionPageState();
+}
+
+class _TopicSelectionPageState extends State<TopicSelectionPage> {
+  final List<AgentConfig> _customAgents = [];
+
+  void _showAddAgentDialog() {
+    final nameController = TextEditingController();
+    final promptController = TextEditingController();
+    IconData selectedIcon = _availableIcons.first;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('New Custom Agent'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Agent Name',
+                        hintText: 'e.g. Recipe Planner',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Icon'),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _availableIcons.map((icon) {
+                        final isSelected = icon == selectedIcon;
+                        return GestureDetector(
+                          onTap: () =>
+                              setDialogState(() => selectedIcon = icon),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppColors.primaryLight
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.border,
+                              ),
+                            ),
+                            child: Icon(
+                              icon,
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : AppColors.textMuted,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: promptController,
+                      maxLines: 4,
+                      decoration: const InputDecoration(
+                        labelText: 'System Prompt',
+                        hintText: 'Describe the agent role and behavior...',
+                        alignLabelWithHint: true,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final name = nameController.text.trim();
+                    final prompt = promptController.text.trim();
+                    if (name.isEmpty || prompt.isEmpty) return;
+                    setState(() {
+                      _customAgents.add(AgentConfig.custom(
+                        name: name,
+                        icon: selectedIcon,
+                        systemPrompt: prompt,
+                      ));
+                    });
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Add'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddAgentDialog,
+        child: const Icon(Icons.add),
+      ),
       body: SafeArea(
         child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -74,10 +233,27 @@ class TopicSelectionPage extends StatelessWidget {
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: 40),
-                for (final topic in TopicMode.values) ...[
-                  _TopicCard(topic: topic),
-                  const SizedBox(height: 16),
+                const SizedBox(height: 32),
+                for (final agent in AgentConfig.builtIn) ...[
+                  _AgentCard(agent: agent),
+                  const SizedBox(height: 12),
+                ],
+                if (_customAgents.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Custom Agents',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  for (final agent in _customAgents) ...[
+                    _AgentCard(agent: agent),
+                    const SizedBox(height: 12),
+                  ],
                 ],
                 const SizedBox(height: 8),
                 TextButton.icon(
@@ -100,9 +276,24 @@ class TopicSelectionPage extends StatelessWidget {
   }
 }
 
-class _TopicCard extends StatelessWidget {
-  const _TopicCard({required this.topic});
-  final TopicMode topic;
+const _availableIcons = [
+  Icons.smart_toy,
+  Icons.restaurant,
+  Icons.school,
+  Icons.brush,
+  Icons.music_note,
+  Icons.code,
+  Icons.science,
+  Icons.pets,
+  Icons.sports_esports,
+  Icons.auto_stories,
+  Icons.lightbulb,
+  Icons.rocket_launch,
+];
+
+class _AgentCard extends StatelessWidget {
+  const _AgentCard({required this.agent});
+  final AgentConfig agent;
 
   @override
   Widget build(BuildContext context) {
@@ -119,18 +310,32 @@ class _TopicCard extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () {
-            Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => ChatPage(topic: topic)));
+            Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => ChatPage(agent: agent),
+            ));
           },
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             child: Row(
               children: [
-                Icon(topic.icon, size: 32, color: theme.colorScheme.primary),
+                Icon(agent.icon, size: 32, color: theme.colorScheme.primary),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: Text(topic.label, style: theme.textTheme.titleLarge),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(agent.label, style: theme.textTheme.titleLarge),
+                      const SizedBox(height: 2),
+                      Text(
+                        agent.subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 Icon(
                   Icons.arrow_forward_ios,
@@ -147,8 +352,9 @@ class _TopicCard extends StatelessWidget {
 }
 
 class ChatPage extends StatefulWidget {
-  const ChatPage({super.key, required this.topic});
-  final TopicMode topic;
+  const ChatPage({super.key, required this.agent});
+
+  final AgentConfig agent;
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -167,7 +373,7 @@ class _ChatPageState extends State<ChatPage> {
 
     final contentGenerator = GoogleGenerativeAiContentGenerator(
       catalog: catalog,
-      systemInstruction: widget.topic.instruction,
+      systemInstruction: widget.agent.instruction,
       modelName: 'models/gemini-3-flash-preview',
       apiKey: dotenv.env['GEMINI_API_KEY']!,
     );
@@ -221,7 +427,7 @@ class _ChatPageState extends State<ChatPage> {
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.primary,
         elevation: 0,
-        title: Text(widget.topic.label),
+        title: Text(widget.agent.label),
       ),
       body: Column(
         children: [

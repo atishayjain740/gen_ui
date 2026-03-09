@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:genui/genui.dart';
 import 'package:gen_ui/theme.dart';
+import 'package:json_schema_builder/json_schema_builder.dart' as dsb;
 
 Catalog createCustomCatalog() {
   return CoreCatalogItems.asCatalog().copyWith([
@@ -13,6 +14,10 @@ Catalog createCustomCatalog() {
     _imageCard,
     _spacedColumn,
     _spacedRow,
+    _progressIndicator,
+    _emojiRating,
+    _styledRangeSlider,
+    _styledDateTimeInput,
   ]);
 }
 
@@ -538,6 +543,521 @@ final _spacedRow = CatalogItem(
     return _buildSpacedLayout(itemContext: itemContext, axis: Axis.horizontal);
   },
   exampleData: CoreCatalogItems.row.exampleData,
+);
+
+// ---------------------------------------------------------------------------
+// ProgressIndicator — shows "Question X of Y" with a linear progress bar
+// ---------------------------------------------------------------------------
+final _progressIndicator = CatalogItem(
+  name: 'ProgressIndicator',
+  dataSchema: dsb.S.object(
+    properties: {
+      'current': dsb.S.integer(description: 'Current step number (1-based).'),
+      'total': dsb.S.integer(description: 'Total number of steps.'),
+      'label': dsb.S.string(
+        description: 'Optional label, e.g. "Question 2 of 6".',
+      ),
+    },
+    required: ['current', 'total'],
+  ),
+  widgetBuilder: (itemContext) {
+    final data = itemContext.data as JsonMap;
+    final current = (data['current'] as num?)?.toInt() ?? 1;
+    final total = (data['total'] as num?)?.toInt() ?? 1;
+    final label = data['label'] as String? ?? 'Question $current of $total';
+    final progress = total > 0 ? current / total : 0.0;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                '$current/$total',
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 6,
+              backgroundColor: AppColors.primaryLight,
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(AppColors.primary),
+            ),
+          ),
+        ],
+      ),
+    );
+  },
+  exampleData: [
+    () => '''[
+      {"id":"root","component":{"ProgressIndicator":{"current":2,"total":6}}}
+    ]''',
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// EmojiRating — row of emoji faces for mood/satisfaction rating
+// ---------------------------------------------------------------------------
+final _emojiRating = CatalogItem(
+  name: 'EmojiRating',
+  dataSchema: dsb.S.object(
+    properties: {
+      'value': dsb.S.object(
+        description: 'Data-bound path for the selected rating value.',
+        properties: {
+          'path': dsb.S.string(
+            description: 'Path in the data model to store the selection.',
+          ),
+          'literalNumber': dsb.S.number(),
+        },
+      ),
+      'labels': dsb.S.list(
+        description:
+            'Optional labels for each emoji (e.g. ["Very Bad","Bad","Okay","Good","Great"]). '
+            'Must have exactly 5 items if provided.',
+        items: dsb.S.string(),
+      ),
+    },
+    required: ['value'],
+  ),
+  widgetBuilder: (itemContext) {
+    final data = itemContext.data as JsonMap;
+    final valueRef = data['value'] as JsonMap;
+    final labels = (data['labels'] as List?)?.cast<String>() ??
+        const ['Very Bad', 'Bad', 'Okay', 'Good', 'Great'];
+    const emojis = ['😢', '😟', '😐', '🙂', '😄'];
+
+    final valueNotifier = itemContext.dataContext.subscribeToValue<num>(
+      valueRef,
+      'literalNumber',
+    );
+
+    return ValueListenableBuilder<num?>(
+      valueListenable: valueNotifier,
+      builder: (context, value, _) {
+        final selected = value?.toInt();
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: List.generate(emojis.length, (index) {
+              final isSelected = selected == index + 1;
+              return GestureDetector(
+                onTap: () {
+                  final path = valueRef['path'] as String?;
+                  if (path != null) {
+                    itemContext.dataContext.update(
+                      DataPath(path),
+                      index + 1,
+                    );
+                  }
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.primaryLight
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color:
+                          isSelected ? AppColors.primary : Colors.transparent,
+                      width: 2,
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        emojis[index],
+                        style: TextStyle(
+                          fontSize: isSelected ? 36 : 28,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        labels.length > index ? labels[index] : '',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        );
+      },
+    );
+  },
+  exampleData: [
+    () => '''[
+      {"id":"root","component":{"Column":{"children":{"explicitList":["q","rating","btn"]}}}},
+      {"id":"q","component":{"Text":{"text":{"literalString":"How are you feeling right now?"},"usageHint":"h4"}}},
+      {"id":"rating","component":{"EmojiRating":{"value":{"path":"/mood","literalNumber":3}}}},
+      {"id":"btn","component":{"Button":{"child":"btnTxt","primary":true,"action":{"name":"submit","context":[{"key":"mood","value":{"path":"/mood"}}]}}}},
+      {"id":"btnTxt","component":{"Text":{"text":{"literalString":"Continue"}}}}
+    ]''',
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// RangeSlider — two-thumb slider for selecting a min/max range
+// ---------------------------------------------------------------------------
+final _styledRangeSlider = CatalogItem(
+  name: 'RangeSlider',
+  dataSchema: dsb.S.object(
+    properties: {
+      'lowValue': dsb.S.object(
+        description: 'Data-bound path for the low end of the range.',
+        properties: {
+          'path': dsb.S.string(),
+          'literalNumber': dsb.S.number(),
+        },
+      ),
+      'highValue': dsb.S.object(
+        description: 'Data-bound path for the high end of the range.',
+        properties: {
+          'path': dsb.S.string(),
+          'literalNumber': dsb.S.number(),
+        },
+      ),
+      'minValue': dsb.S.number(description: 'Minimum possible value.'),
+      'maxValue': dsb.S.number(description: 'Maximum possible value.'),
+      'unit': dsb.S.string(
+        description: 'Optional unit label, e.g. "\$", "km", "hrs".',
+      ),
+    },
+    required: ['lowValue', 'highValue'],
+  ),
+  widgetBuilder: (itemContext) {
+    final data = itemContext.data as JsonMap;
+    final lowRef = data['lowValue'] as JsonMap;
+    final highRef = data['highValue'] as JsonMap;
+    final minValue = (data['minValue'] as num?)?.toDouble() ?? 0.0;
+    final maxValue = (data['maxValue'] as num?)?.toDouble() ?? 100.0;
+    final unit = data['unit'] as String? ?? '';
+
+    final lowNotifier = itemContext.dataContext.subscribeToValue<num>(
+      lowRef,
+      'literalNumber',
+    );
+    final highNotifier = itemContext.dataContext.subscribeToValue<num>(
+      highRef,
+      'literalNumber',
+    );
+
+    return ValueListenableBuilder<num?>(
+      valueListenable: lowNotifier,
+      builder: (context, lowVal, _) {
+        return ValueListenableBuilder<num?>(
+          valueListenable: highNotifier,
+          builder: (context, highVal, _) {
+            final theme = Theme.of(context);
+            final low = (lowVal ?? minValue).toDouble();
+            final high = (highVal ?? maxValue).toDouble();
+            final divisions = (maxValue - minValue).toInt();
+
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        '$unit${low.toStringAsFixed(0)}',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      'to',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        '$unit${high.toStringAsFixed(0)}',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                SliderTheme(
+                  data: SliderThemeData(
+                    trackHeight: 6,
+                    activeTrackColor: AppColors.primary,
+                    inactiveTrackColor: AppColors.primaryLight,
+                    thumbColor: AppColors.primary,
+                    overlayColor: AppColors.primary.withValues(alpha: 0.12),
+                    rangeThumbShape: const RoundRangeSliderThumbShape(
+                      enabledThumbRadius: 12,
+                    ),
+                  ),
+                  child: RangeSlider(
+                    values: RangeValues(low, high),
+                    min: minValue,
+                    max: maxValue,
+                    divisions: divisions > 0 ? divisions : null,
+                    onChanged: (values) {
+                      final lowPath = lowRef['path'] as String?;
+                      final highPath = highRef['path'] as String?;
+                      if (lowPath != null) {
+                        itemContext.dataContext.update(
+                          DataPath(lowPath),
+                          values.start,
+                        );
+                      }
+                      if (highPath != null) {
+                        itemContext.dataContext.update(
+                          DataPath(highPath),
+                          values.end,
+                        );
+                      }
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '$unit${minValue.toStringAsFixed(0)}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                      Text(
+                        '$unit${maxValue.toStringAsFixed(0)}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  },
+  exampleData: [
+    () => '''[
+      {"id":"root","component":{"Column":{"children":{"explicitList":["q","range","btn"]}}}},
+      {"id":"q","component":{"Text":{"text":{"literalString":"What is your budget range per person?"},"usageHint":"h4"}}},
+      {"id":"range","component":{"RangeSlider":{"lowValue":{"path":"/budgetLow","literalNumber":500},"highValue":{"path":"/budgetHigh","literalNumber":2000},"minValue":100,"maxValue":5000,"unit":"\$"}}},
+      {"id":"btn","component":{"Button":{"child":"btnTxt","primary":true,"action":{"name":"submit","context":[{"key":"budgetLow","value":{"path":"/budgetLow"}},{"key":"budgetHigh","value":{"path":"/budgetHigh"}}]}}}},
+      {"id":"btnTxt","component":{"Text":{"text":{"literalString":"Continue"}}}}
+    ]''',
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// DateTimeInput — styled version of core DateTimeInput
+// ---------------------------------------------------------------------------
+final _styledDateTimeInput = CatalogItem(
+  name: 'DateTimeInput',
+  dataSchema: CoreCatalogItems.dateTimeInput.dataSchema,
+  widgetBuilder: (itemContext) {
+    final data = itemContext.data as JsonMap;
+    final valueRef = data['value'] as JsonMap;
+    final enableDate = (data['enableDate'] as bool?) ?? true;
+    final enableTime = (data['enableTime'] as bool?) ?? true;
+
+    final valueNotifier = itemContext.dataContext.subscribeToString(valueRef);
+
+    return ValueListenableBuilder<String?>(
+      valueListenable: valueNotifier,
+      builder: (context, value, _) {
+        final theme = Theme.of(context);
+        String displayText;
+        if (value != null && value.isNotEmpty) {
+          final date = DateTime.tryParse(value);
+          if (date != null) {
+            final parts = <String>[];
+            if (enableDate) {
+              parts.add(
+                MaterialLocalizations.of(context).formatMediumDate(date),
+              );
+            }
+            if (enableTime) {
+              parts.add(
+                MaterialLocalizations.of(context).formatTimeOfDay(
+                  TimeOfDay.fromDateTime(date),
+                ),
+              );
+            }
+            displayText = parts.join(' at ');
+          } else {
+            displayText = value;
+          }
+        } else {
+          if (enableDate && !enableTime) {
+            displayText = 'Tap to select a date';
+          } else if (!enableDate && enableTime) {
+            displayText = 'Tap to select a time';
+          } else {
+            displayText = 'Tap to select date & time';
+          }
+        }
+
+        return InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () async {
+            final path = valueRef['path'] as String?;
+            if (path == null) return;
+
+            final now = DateTime.now();
+            DateTime resultDate = DateTime.tryParse(value ?? '') ?? now;
+            TimeOfDay resultTime = TimeOfDay.fromDateTime(resultDate);
+
+            if (enableDate) {
+              final firstDateStr = data['firstDate'] as String?;
+              final lastDateStr = data['lastDate'] as String?;
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: resultDate,
+                firstDate:
+                    DateTime.tryParse(firstDateStr ?? '') ?? DateTime(2020),
+                lastDate:
+                    DateTime.tryParse(lastDateStr ?? '') ?? DateTime(2030),
+              );
+              if (picked == null || !context.mounted) return;
+              resultDate = picked;
+            }
+
+            if (enableTime) {
+              final picked = await showTimePicker(
+                context: context,
+                initialTime: resultTime,
+              );
+              if (picked == null) return;
+              resultTime = picked;
+            }
+
+            final finalDt = DateTime(
+              resultDate.year,
+              resultDate.month,
+              resultDate.day,
+              enableTime ? resultTime.hour : 0,
+              enableTime ? resultTime.minute : 0,
+            );
+
+            String formatted;
+            if (enableDate && !enableTime) {
+              formatted = finalDt.toIso8601String().split('T').first;
+            } else if (!enableDate && enableTime) {
+              formatted =
+                  '${finalDt.hour.toString().padLeft(2, '0')}:'
+                  '${finalDt.minute.toString().padLeft(2, '0')}:00';
+            } else {
+              formatted = finalDt.toIso8601String();
+            }
+            itemContext.dataContext.update(DataPath(path), formatted);
+          },
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.calendar_today_rounded,
+                  size: 20,
+                  color: AppColors.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    displayText,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: (value != null && value.isNotEmpty)
+                          ? AppColors.primary
+                          : AppColors.textMuted,
+                    ),
+                  ),
+                ),
+                const Icon(
+                  Icons.arrow_drop_down,
+                  color: AppColors.textMuted,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  },
+  exampleData: [
+    () => '''[
+      {"id":"root","component":{"Column":{"children":{"explicitList":["q","picker","btn"]}}}},
+      {"id":"q","component":{"Text":{"text":{"literalString":"When are you planning to travel?"},"usageHint":"h4"}}},
+      {"id":"picker","component":{"DateTimeInput":{"value":{"path":"/travelDate"},"enableTime":false}}},
+      {"id":"btn","component":{"Button":{"child":"btnTxt","primary":true,"action":{"name":"submit","context":[{"key":"travelDate","value":{"path":"/travelDate"}}]}}}},
+      {"id":"btnTxt","component":{"Text":{"text":{"literalString":"Continue"}}}}
+    ]''',
+  ],
 );
 
 MainAxisAlignment _mainAxisAlignment(String? value) {
