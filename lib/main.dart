@@ -183,6 +183,8 @@ class _ChatPageState extends State<ChatPage> {
       },
       onError: _handleGenUiError,
     );
+
+    _onGetStarted();
   }
 
   void _handleGenUiError(ContentGeneratorError error) {
@@ -235,27 +237,8 @@ class _ChatPageState extends State<ChatPage> {
               valueListenable: _genUiConversation.conversation,
               builder: (context, messages, _) {
                 if (messages.isEmpty) {
-                  return ValueListenableBuilder<bool>(
-                    valueListenable: _genUiConversation.isProcessing,
-                    builder: (context, isProcessing, _) {
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24.0),
-                          child: FilledButton(
-                            onPressed: isProcessing ? null : _onGetStarted,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 32,
-                                vertical: 16,
-                              ),
-                              child: Text(
-                                isProcessing ? 'Please wait…' : 'Get started',
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
+                  return const Center(
+                    child: CircularProgressIndicator(),
                   );
                 }
 
