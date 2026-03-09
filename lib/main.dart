@@ -180,11 +180,13 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
                     final prompt = promptController.text.trim();
                     if (name.isEmpty || prompt.isEmpty) return;
                     setState(() {
-                      _customAgents.add(AgentConfig.custom(
-                        name: name,
-                        icon: selectedIcon,
-                        systemPrompt: prompt,
-                      ));
+                      _customAgents.add(
+                        AgentConfig.custom(
+                          name: name,
+                          icon: selectedIcon,
+                          systemPrompt: prompt,
+                        ),
+                      );
                     });
                     Navigator.pop(context);
                   },
@@ -310,9 +312,9 @@ class _AgentCard extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () {
-            Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => ChatPage(agent: agent),
-            ));
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => ChatPage(agent: agent)));
           },
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -370,7 +372,6 @@ class _ChatPageState extends State<ChatPage> {
 
     final catalog = createCustomCatalog();
     _a2uiMessageProcessor = A2uiMessageProcessor(catalogs: [catalog]);
-
     final contentGenerator = GoogleGenerativeAiContentGenerator(
       catalog: catalog,
       systemInstruction: widget.agent.instruction,
@@ -443,9 +444,7 @@ class _ChatPageState extends State<ChatPage> {
               valueListenable: _genUiConversation.conversation,
               builder: (context, messages, _) {
                 if (messages.isEmpty) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
+                  return const Center(child: CircularProgressIndicator());
                 }
 
                 final AiUiMessage? latestUiMessage = messages.reversed
