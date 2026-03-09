@@ -11,6 +11,8 @@ Catalog createCustomCatalog() {
     _styledCheckBox,
     _styledTextField,
     _imageCard,
+    _spacedColumn,
+    _spacedRow,
   ]);
 }
 
@@ -336,13 +338,13 @@ final _styledSlider = CatalogItem(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '${minValue.toStringAsFixed(0)} day',
+                    minValue.toStringAsFixed(0),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: AppColors.textMuted,
                     ),
                   ),
                   Text(
-                    '${maxValue.toStringAsFixed(0)} days',
+                    maxValue.toStringAsFixed(0),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: AppColors.textMuted,
                     ),
@@ -513,6 +515,146 @@ final _imageCard = CatalogItem(
     ]''',
   ],
 );
+
+// ---------------------------------------------------------------------------
+// Column — with vertical spacing between children
+// ---------------------------------------------------------------------------
+final _spacedColumn = CatalogItem(
+  name: 'Column',
+  dataSchema: CoreCatalogItems.column.dataSchema,
+  widgetBuilder: (itemContext) {
+    return _buildSpacedLayout(itemContext: itemContext, axis: Axis.vertical);
+  },
+  exampleData: CoreCatalogItems.column.exampleData,
+);
+
+// ---------------------------------------------------------------------------
+// Row — with horizontal spacing between children
+// ---------------------------------------------------------------------------
+final _spacedRow = CatalogItem(
+  name: 'Row',
+  dataSchema: CoreCatalogItems.row.dataSchema,
+  widgetBuilder: (itemContext) {
+    return _buildSpacedLayout(itemContext: itemContext, axis: Axis.horizontal);
+  },
+  exampleData: CoreCatalogItems.row.exampleData,
+);
+
+MainAxisAlignment _mainAxisAlignment(String? value) {
+  return switch (value) {
+    'center' => MainAxisAlignment.center,
+    'end' => MainAxisAlignment.end,
+    'spaceBetween' => MainAxisAlignment.spaceBetween,
+    'spaceAround' => MainAxisAlignment.spaceAround,
+    'spaceEvenly' => MainAxisAlignment.spaceEvenly,
+    _ => MainAxisAlignment.start,
+  };
+}
+
+CrossAxisAlignment _crossAxisAlignment(String? value) {
+  return switch (value) {
+    'center' => CrossAxisAlignment.center,
+    'end' => CrossAxisAlignment.end,
+    'stretch' => CrossAxisAlignment.stretch,
+    'baseline' => CrossAxisAlignment.baseline,
+    _ => CrossAxisAlignment.start,
+  };
+}
+
+Widget _buildSpacedLayout({
+  required CatalogItemContext itemContext,
+  required Axis axis,
+}) {
+  const verticalSpacing = 12.0;
+  const horizontalSpacing = 8.0;
+  final spacing = axis == Axis.vertical ? verticalSpacing : horizontalSpacing;
+  final spacer = axis == Axis.vertical
+      ? SizedBox(height: spacing)
+      : SizedBox(width: spacing);
+
+  final data = itemContext.data as JsonMap;
+  final childrenData = data['children'];
+  final distribution = data['distribution'] as String?;
+  final alignment = data['alignment'] as String?;
+
+  final List<String>? explicitList = (childrenData is List)
+      ? childrenData.cast<String>()
+      : ((childrenData as JsonMap?)?['explicitList'] as List?)?.cast<String>();
+
+  if (explicitList != null) {
+    final children = <Widget>[];
+    for (var i = 0; i < explicitList.length; i++) {
+      if (i > 0) children.add(spacer);
+      final id = explicitList[i];
+      final weight = itemContext.getComponent(id)?.weight;
+      Widget child = itemContext.buildChild(id);
+      if (weight != null) {
+        child = Flexible(flex: weight, child: child);
+      }
+      children.add(child);
+    }
+    return axis == Axis.vertical
+        ? Column(
+            mainAxisAlignment: _mainAxisAlignment(distribution),
+            crossAxisAlignment: _crossAxisAlignment(alignment),
+            mainAxisSize: MainAxisSize.min,
+            children: children,
+          )
+        : Row(
+            mainAxisAlignment: _mainAxisAlignment(distribution),
+            crossAxisAlignment: _crossAxisAlignment(alignment),
+            mainAxisSize: MainAxisSize.min,
+            children: children,
+          );
+  }
+
+  if (childrenData is JsonMap) {
+    final template = childrenData['template'] as JsonMap?;
+    if (template != null) {
+      final dataBinding = template['dataBinding'] as String;
+      final componentId = template['componentId'] as String;
+      final dataNotifier = itemContext.dataContext
+          .subscribe<Map<String, Object?>>(DataPath(dataBinding));
+      return ValueListenableBuilder<Map<String, Object?>?>(
+        valueListenable: dataNotifier,
+        builder: (context, mapData, _) {
+          if (mapData == null) return const SizedBox.shrink();
+          final keys = mapData.keys.toList();
+          final children = <Widget>[];
+          for (var i = 0; i < keys.length; i++) {
+            if (i > 0) children.add(spacer);
+            final weight = itemContext.getComponent(componentId)?.weight;
+            Widget child = itemContext.buildChild(
+              componentId,
+              itemContext.dataContext.nested(
+                DataPath('$dataBinding/${keys[i]}'),
+              ),
+            );
+            if (weight != null) {
+              child = Flexible(flex: weight, child: child);
+            }
+            children.add(child);
+          }
+          return axis == Axis.vertical
+              ? Column(
+                  mainAxisAlignment: _mainAxisAlignment(distribution),
+                  crossAxisAlignment: _crossAxisAlignment(alignment),
+                  mainAxisSize: MainAxisSize.min,
+                  children: children,
+                )
+              : Row(
+                  mainAxisAlignment: _mainAxisAlignment(distribution),
+                  crossAxisAlignment: _crossAxisAlignment(alignment),
+                  mainAxisSize: MainAxisSize.min,
+                  children: children,
+                );
+        },
+      );
+    }
+  }
+
+  return const SizedBox.shrink();
+}
 
 class _StyledTextField extends StatefulWidget {
   const _StyledTextField({
